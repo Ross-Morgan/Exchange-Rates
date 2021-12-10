@@ -1,12 +1,8 @@
-"""
-GUI Application for converting currencies using forex_python module
-"""
-
 from typing import Optional, Union
 import sys
 
-from PyQt6 import QtGui, QtWidgets
 # from forex_python.converter import CurrencyCodes, CurrencyRates
+from PyQt6 import QtGui, QtWidgets
 
 from currency import get_codes
 
@@ -45,11 +41,13 @@ class MainWindow(MainWindowWrapper):
     """Main Window for application."""
     def __init__(self, size: tuple[int, int], title: str,
                  icon: QtGui.QIcon,
-                 parent: Optional[QtWidgets.QWidget] = None):
+                 parent: Optional[QtWidgets.QWidget] = None) -> None:
         super(MainWindow, self).__init__(parent)
 
         self.ui: MainWindow.ui_types = {}
         self.shortcuts: dict[str, QtGui.QShortcut] = {}
+
+        self.currency_codes = get_codes()
 
         self.setFixedSize(*size)
         self.setWindowTitle(title)
@@ -58,7 +56,7 @@ class MainWindow(MainWindowWrapper):
         self.setup_ui()
         self.setup_shortcuts()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         self.ui["background"] = QtWidgets.QLabel(self)
         self.ui["background"].setGeometry(0, 0, self.width(), self.height())
         self.ui["background"].setStyleSheet(qml_sheet("background"))
@@ -67,18 +65,27 @@ class MainWindow(MainWindowWrapper):
         self.ui["fields"]["input"] = QtWidgets.QComboBox(self)
         self.ui["fields"]["input"].setGeometry(10, 10, 150, 50)
         self.ui["fields"]["output"] = QtWidgets.QComboBox(self)
-        self.ui["fields"]["output"].setGeometry(10, 70, 150, 50)
+        self.ui["fields"]["output"].setGeometry(170, 10, 150, 50)
 
         for field in self.ui["fields"].values():
             # TODO Make currency code fetching faster somehow (threading?)
-            field.addItems(get_codes())
+            # * Fixed with caching :)
+            field.addItems(self.currency_codes)
 
         self.ui["logo"] = QtWidgets.QLabel(self)
         self.ui["logo"].setGeometry(self.width() - 138, 10, 128, 128)
         self.ui["logo"].setPixmap(QtGui.QPixmap(ICON_PATH).scaled(128, 128))
 
-    def setup_shortcuts(self):
-        pass
+        # TODO: Add offline mode with cached variables
+        # TODO: Maybe only conversions to and from 1 currency to save space
+        # TODO: This could lead to rounding inaccuracies (due to floats)
+
+    def setup_shortcuts(self) -> None:
+        QKSq = QtGui.QKeySequence
+        QSct = QtGui.QShortcut
+
+        self.shortcuts["exit"] = QSct(QKSq("ctrl+w"), self)
+        self.shortcuts["exit"].activated.connect(lambda: self.close())
 
 
 def main():
@@ -97,4 +104,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import cProfile
+    import pstats
+
+    with cProfile.Profile() as pr:
+        main()
+
+    stats = pstats.Stats(pr)
+    stats.sort_stats(pstats.SortKey.TIME)
+    stats.dump_stats("profile.prof")

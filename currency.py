@@ -2,23 +2,23 @@ from datapackage import Package as Pkg
 from typing import Optional
 import os
 
+CSV_PATH = "Assets/Scripts/codes.csv"
+
 
 def get_cache() -> Optional[list[str]]:
-    if os.path.exists("codes.csv"):
-        return open("codes.csv").read().split(",")
+    if os.path.exists(CSV_PATH):
+        return open(CSV_PATH).read().split(",")
 
 
 def cache_codes(codes: list[str]):
-    if os.path.exists("codes.csv"):
+    if os.path.exists(CSV_PATH):
         return
 
-    open("codes.csv", "w").write(",".join(codes))
+    open(CSV_PATH, "w").write(",".join(codes))
 
 
 def get_codes() -> list[str]:
     cache = get_cache()
-
-    print(f"{cache=}")
 
     if cache:
         return cache
