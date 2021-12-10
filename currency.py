@@ -2,28 +2,26 @@ from datapackage import Package as Pkg
 from typing import Optional
 import os
 
-CSV_PATH = "Assets/Scripts/codes.csv"
+CODES_PATH = "Assets/Scripts/codes.csv"
+DEFAULT_CURRENCY_PATH = "ASsets/Scripts/default_currency.csv"
 
 
-def get_cache() -> Optional[list[str]]:
-    if os.path.exists(CSV_PATH):
-        return open(CSV_PATH).read().split(",")
+def get_codes_cache() -> Optional[list[str]]:
+    if os.path.exists(CODES_PATH):
+        return open(CODES_PATH).read().strip().split(",")
 
 
-def cache_codes(codes: list[str]):
-    if os.path.exists(CSV_PATH):
-        return
-
-    open(CSV_PATH, "w").write(",".join(codes))
+def cache_currency_codes(codes: list[str]):
+    open(CODES_PATH, "w+").write(",".join(codes))
 
 
 def get_codes() -> list[str]:
-    cache = get_cache()
+    cache = get_codes_cache()
 
     if cache:
         return cache
 
-    package = Pkg('https://datahub.io/core/currency-codes/datapackage.json')
+    package = Pkg("https://datahub.io/core/currency-codes/datapackage.json")
     codes: list[str] = []
 
     for resource in package.resources:
@@ -37,6 +35,16 @@ def get_codes() -> list[str]:
 
         break
 
-    cache_codes(codes)
+    cache_currency_codes(codes)
 
     return codes
+
+
+def set_default_currency(curr: str):
+    open(DEFAULT_CURRENCY_PATH, "w+").write(curr.upper())
+
+
+# TODO return random if multiple codes are in file
+def get_default_currency():
+    if os.path.exists(DEFAULT_CURRENCY_PATH):
+        return open(DEFAULT_CURRENCY_PATH).read().replace(" ", "").split(",")
