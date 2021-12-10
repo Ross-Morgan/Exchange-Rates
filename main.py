@@ -106,7 +106,6 @@ class MainWindow(MainWindowWrapper):
 
 
 def main():
-    """Main Function to run program"""
     app = QtWidgets.QApplication(sys.argv)
 
     width, height = 640, 480

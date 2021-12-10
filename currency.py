@@ -1,9 +1,11 @@
 from datapackage import Package as Pkg
 from typing import Optional
+import httpx
 import os
 
 CODES_PATH = "Assets/Scripts/codes.csv"
 DEFAULT_CURRENCY_PATH = "ASsets/Scripts/default_currency.csv"
+API_URL = "https://api.ipregistry.co/?key=tryout&fields=location.country"
 
 
 def get_codes_cache() -> Optional[list[str]]:
@@ -13,6 +15,10 @@ def get_codes_cache() -> Optional[list[str]]:
 
 def cache_currency_codes(codes: list[str]):
     open(CODES_PATH, "w+").write(",".join(codes))
+
+
+def get_country() -> str:
+    return httpx.get(API_URL).text
 
 
 def get_codes() -> list[str]:
@@ -45,6 +51,6 @@ def set_default_currency(curr: str):
 
 
 # TODO return random if multiple codes are in file
-def get_default_currency():
+def get_default_currency() -> tuple[str, str]:
     if os.path.exists(DEFAULT_CURRENCY_PATH):
-        return open(DEFAULT_CURRENCY_PATH).read().replace(" ", "").split(",")
+        return open(DEFAULT_CURRENCY_PATH).read().strip().split(",")[0:2]
