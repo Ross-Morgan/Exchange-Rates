@@ -2,40 +2,16 @@
 GUI Application for converting currencies using forex_python module
 """
 
-from typing import Optional
+from typing import Optional, Union
 import sys
 
-from PyQt5 import QtGui, QtWidgets
-from forex_python.converter import CurrencyCodes, CurrencyRates
+from PyQt6 import QtGui, QtWidgets
+# from forex_python.converter import CurrencyCodes, CurrencyRates
 
-
-rates = CurrencyRates()
-codes = CurrencyCodes()
+from currency import get_codes
 
 
 ICON_PATH = "Assets/exchange.png"
-
-currency_codes = (
-    "JPY", "CNY", "SDG", "RON", "MKD", "MXN", "CAD", "XAF", "GYD", "AFN",
-    "ZAR", "AUD", "NOK", "ILS", "ISK", "SYP", "LYD", "UYU", "YER", "CSD",
-    "EEK", "THB", "IDR", "LBP", "AED", "BOB", "QAR", "BHD", "HNL", "HRK",
-    "COP", "ALL", "DKK", "MYR", "SEK", "RSD", "BGN", "DOP", "KRW", "LVL",
-    "VEF", "CZK", "TND", "KWD", "VND", "JOD", "NZD", "PAB", "CLP", "PEN",
-    "GBP", "DZD", "CHF", "RUB", "UAH", "ARS", "SAR", "EGP", "INR", "PYG",
-    "TWD", "TRY", "BAM", "OMR", "SGD", "MAD", "BYR", "NIO", "HKD", "LTL",
-    "SKK", "GTQ", "BRL", "EUR", "HUF", "IQD", "CRC", "PHP", "SVC", "PLN",
-    "USD", "XBB", "XBC", "XBD", "UGX", "MOP", "SHP", "TTD", "UYI", "KGS",
-    "DJF", "BTN", "XBA", "HTG", "BBD", "XAU", "FKP", "MWK", "PGK", "XCD",
-    "COU", "RWF", "NGN", "BSD", "XTS", "TMT", "SOS", "TOP", "AOA", "KPW",
-    "GEL", "VUV", "FJD", "MVR", "AZN", "MNT", "MGA", "WST", "KMF", "GNF",
-    "SBD", "BDT", "MMK", "TJS", "CVE", "MDL", "KES", "SRD", "LRD", "MUR",
-    "CDF", "BMD", "USN", "CUP", "USS", "GMD", "UZS", "CUC", "ZMK", "NPR",
-    "NAD", "LAK", "SZL", "XDR", "BND", "TZS", "MXV", "LSL", "KYD", "LKR",
-    "ANG", "PKR", "SLL", "SCR", "GHS", "ERN", "BOV", "GIP", "IRR", "XPT",
-    "BWP", "XFU", "CLF", "ETB", "STD", "XXX", "XPD", "AMD", "XPF", "JMD",
-    "MRO", "BIF", "CHW", "ZWL", "AWG", "MZN", "CHE", "XOF", "KZT", "BZD",
-    "XAG", "KHR",
-)
 
 
 def qml_sheet(name) -> str:
@@ -61,14 +37,19 @@ class MainWindowWrapper(QtWidgets.QMainWindow):
 
 
 class MainWindow(MainWindowWrapper):
+    ui_types = dict[str, dict[str, Union[
+        QtWidgets.QComboBox, QtWidgets.QLabel,
+        QtWidgets.QPushButton
+    ]]]
+
     """Main Window for application."""
     def __init__(self, size: tuple[int, int], title: str,
                  icon: QtGui.QIcon,
                  parent: Optional[QtWidgets.QWidget] = None):
         super(MainWindow, self).__init__(parent)
 
-        self.ui = {}
-        self.shortcuts = {}
+        self.ui: MainWindow.ui_types = {}
+        self.shortcuts: dict[str, QtGui.QShortcut] = {}
 
         self.setFixedSize(*size)
         self.setWindowTitle(title)
@@ -81,6 +62,16 @@ class MainWindow(MainWindowWrapper):
         self.ui["background"] = QtWidgets.QLabel(self)
         self.ui["background"].setGeometry(0, 0, self.width(), self.height())
         self.ui["background"].setStyleSheet(qml_sheet("background"))
+
+        self.ui["fields"] = {}
+        self.ui["fields"]["input"] = QtWidgets.QComboBox(self)
+        self.ui["fields"]["input"].setGeometry(10, 10, 150, 50)
+        self.ui["fields"]["output"] = QtWidgets.QComboBox(self)
+        self.ui["fields"]["output"].setGeometry(10, 70, 150, 50)
+
+        for field in self.ui["fields"].values():
+            # TODO Make currency code fetching faster somehow (threading?)
+            field.addItems(get_codes())
 
         self.ui["logo"] = QtWidgets.QLabel(self)
         self.ui["logo"].setGeometry(self.width() - 138, 10, 128, 128)
