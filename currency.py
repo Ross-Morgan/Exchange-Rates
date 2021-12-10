@@ -1,11 +1,21 @@
-from datapackage import Package as Pkg
+# Stdlib imports
+from datetime import date
 from typing import Optional
-import httpx
 import os
 
-CODES_PATH = "Assets/Scripts/codes.csv"
-DEFAULT_CURRENCY_PATH = "ASsets/Scripts/default_currency.csv"
-API_URL = "https://api.ipregistry.co/?key=tryout&fields=location.country"
+# Install module imports
+from forex_python.converter import CurrencyCodes, CurrencyRates
+from datapackage import Package as Pkg
+import httpx
+
+
+CODES_PATH = "Assets/Scripts/csv/codes.csv"
+DEFAULT_CURRENCY_PATH = "ASsets/Scripts/csv/default_currency.csv"
+API_KEY = os.getenv("IPREGISTRY_API_KEY")
+API_URL = f"https://api.ipregistry.co/?key={API_KEY}&fields=location.country"
+
+codes = CurrencyCodes()
+rates = CurrencyRates()
 
 
 def get_codes_cache() -> Optional[list[str]]:
@@ -13,28 +23,28 @@ def get_codes_cache() -> Optional[list[str]]:
         return open(CODES_PATH).read().strip().split(",")
 
 
-def cache_currency_codes(codes: list[str]):
+def cache_currency_codes(codes: set[str]):
     open(CODES_PATH, "w+").write(",".join(codes))
 
 
 def get_country() -> str:
-    return httpx.get(API_URL).text
+    return httpx.get(API_URL).json()["location"]["country"]["name"]
 
 
-def get_codes() -> list[str]:
+def get_codes() -> set[str]:
     cache = get_codes_cache()
 
     if cache:
-        return cache
+        return set(cache)
 
     package = Pkg("https://datahub.io/core/currency-codes/datapackage.json")
-    codes: list[str] = []
+    codes: list[str] = set()
 
     for resource in package.resources:
         if resource.descriptor["datahub"]["type"] != "derived/csv":
             continue
 
-        codes = list(map(lambda x: x[2], resource.read()))
+        codes = set(map(lambda x: x[2], resource.read()))
 
         while None in codes:
             codes.remove(None)
@@ -46,11 +56,22 @@ def get_codes() -> list[str]:
     return codes
 
 
-def set_default_currency(curr: str):
-    open(DEFAULT_CURRENCY_PATH, "w+").write(curr.upper())
+def set_default_currency(code: str):
+    open(DEFAULT_CURRENCY_PATH, "w+").write(code.upper())
 
 
-# TODO return random if multiple codes are in file
 def get_default_currency() -> tuple[str, str]:
     if os.path.exists(DEFAULT_CURRENCY_PATH):
         return open(DEFAULT_CURRENCY_PATH).read().strip().split(",")[0:2]
+
+
+def get_symbol(code: str) -> str:
+    return codes.get_symbol(code)
+
+
+def get_rate(code1: str, code2: str, date: date = None) -> float:
+    return rates.get_rate(code1, code2, date)
+
+
+def convert(code1: str, code2: str, val: float, date: date) -> float:
+    return rates.convert(code1, code2, val, date)
