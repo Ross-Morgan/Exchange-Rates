@@ -112,7 +112,7 @@ class MainWindow(MainWindowWrapper):
         self.ui["buttons"]["convert"] = QtWidgets.QPushButton("CONVERT", self)
         self.ui["buttons"]["convert"].setGeometry(20, 210, 420, 50)
         self.ui["buttons"]["convert"].setFont(QtGui.QFont("helvetica", 20))
-        self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("convert"))
+        self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("convert_button"))
         self.ui["buttons"]["convert"].clicked.connect(self.convert)
 
         # TODO: Add offline mode with cached variables
