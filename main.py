@@ -9,9 +9,7 @@ from PyQt6 import QtGui, QtWidgets
 
 # Local module imports
 from currency import convert as _convert
-from currency import get_codes, get_default_currency, get_symbol, remove_symbol
-
-ICON_PATH = "Assets/exchange.png"
+from currency import get_codes, get_default_currency, get_symbol, floatify
 
 
 def qss_sheet(name) -> str:
@@ -50,6 +48,7 @@ class MainWindow(MainWindowWrapper):
 
         self.ui: MainWindow.ui_types = {}
         self.shortcuts: dict[str, QtGui.QShortcut] = {}
+        self.icon_path = "Assets/exchange.png"
 
         self.curr_codes = list(get_codes())
 
@@ -73,7 +72,7 @@ class MainWindow(MainWindowWrapper):
 
         self.ui["logo"] = QtWidgets.QLabel(self)
         self.ui["logo"].setGeometry(self.width() - 154, 16, 128, 128)
-        self.ui["logo"].setPixmap(QtGui.QPixmap(ICON_PATH).scaled(128, 128))
+        self.ui["logo"].setPixmap(QtGui.QPixmap(self.icon_path).scaled(128, 128))
 
         self.ui["fields"] = {}
 
@@ -133,29 +132,19 @@ class MainWindow(MainWindowWrapper):
         self.shortcuts["get_rate"].activated.connect(self.convert)
 
     def convert(self):
-        code1: str = self.ui["fields"]["code1"].currentData()
-        code2: str = self.ui["fields"]["code2"].currentData()
-        val = remove_symbol(self.ui["fields"]["input"].text())
+        code1_index: int = self.ui["fields"]["code1"].currentIndex()
+        code2_index: int = self.ui["fields"]["code2"].currentIndex()
+
+        code1 = self.curr_codes.index(code1_index)
+        code2 = self.curr_codes.index(code2_index)
+
+        val = floatify(self.ui["fields"]["input"].text())
 
         print((code1, code2), val)
 
-        rate = _convert(code1, code2, val, date)
+        rate = _convert(code1, code2, val)
 
         print(f"{code1}: {val} | {code2}: {rate}")
-
-    def text_changed(self, field: str):
-        text = self.ui["fields"][field].text()
-        selected_code = self.ui["fields"][field].currentData()
-        print(f"{selected_code=}")
-
-        text = "".join([get_symbol(selected_code), text[1:4]])
-
-        self.ui["fields"][field].setText(text)
-
-    def index_changed(self, field: str):
-        self.ui["fields"][field].setText(
-
-        )
 
 
 def main():
@@ -173,12 +162,18 @@ def main():
 
 
 if __name__ == "__main__":
-    import cProfile
-    import pstats
+    DEBUG = True
 
-    with cProfile.Profile() as pr:
+    if DEBUG:
+        import cProfile
+        import pstats
+
+        with cProfile.Profile() as pr:
+            main()
+
+        stats = pstats.Stats(pr)
+        stats.sort_stats(pstats.SortKey.TIME)
+        stats.dump_stats("profile.prof")
+
+    else:
         main()
-
-    stats = pstats.Stats(pr)
-    stats.sort_stats(pstats.SortKey.TIME)
-    stats.dump_stats("profile.prof")

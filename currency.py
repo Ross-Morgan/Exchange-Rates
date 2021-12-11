@@ -18,6 +18,7 @@ API_URL = f"https://api.ipregistry.co/?key={API_KEY}&fields=location.country"
 codes = CurrencyCodes()
 rates = CurrencyRates()
 
+float_regex = re.compile(r"[^\d.]+")
 
 def get_codes_cache() -> Optional[list[str]]:
     if os.path.exists(CODES_PATH):
@@ -70,10 +71,8 @@ def get_symbol(code: str) -> str:
     return codes.get_symbol(code)
 
 
-def remove_symbol(val: str) -> float:
-    if not val.isdecimal():
-        return 0.0
-    return float(re.compile(r"[^\d.]+").sub("", val))
+def floatify(val: str) -> float:
+    return float(float_regex.sub("", val))
 
 
 def get_rate(code1: str, code2: str, date: datetime = None) -> float:
@@ -82,7 +81,3 @@ def get_rate(code1: str, code2: str, date: datetime = None) -> float:
 
 def convert(code1: str, code2: str, val: float, date: datetime) -> float:
     return rates.convert(code1, code2, val, date)
-
-
-if __name__ == "__main__":
-    print(remove_symbol("US$69,420.69"))
