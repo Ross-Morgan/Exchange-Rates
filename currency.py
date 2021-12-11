@@ -131,7 +131,7 @@ def get_rate(code1: str, code2: str,
 
 def get_rates(code1: str,
               date_from: Optional[date] = None,
-              date_to: Optional[date] = None) -> list[dict[str, float]]:
+              date_to: Optional[date] = None) -> dict[str, dict[str, float]]:
     mode = (API.HISTORICAL if date_from is not None else API.LATEST)
 
     stdout, stderr = subprocess.Popen(["curl", _construct_url(
@@ -147,7 +147,7 @@ def get_rates(code1: str,
 
     print(json.dumps(rates, indent=4), file=open("response.json", "w"))
 
-    return rates[code1]
+    return rates
 
 
 def convert(code1: str, code2: str, val: float,
