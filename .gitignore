@@ -5,3 +5,5 @@
 *.env
 *.txt
 *.env
+*.json
+/.gitignore

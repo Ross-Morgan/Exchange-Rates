@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 # Stdlib imports
 import sys
 from contextlib import suppress
-from functools import partial
+from datetime import datetime
 from typing import Optional, Union
 
 # Installed module imports
@@ -9,7 +11,7 @@ from PyQt6 import QtGui, QtWidgets
 
 # Local module imports
 from currency import convert as _convert
-from currency import get_codes, get_default_currency, get_symbol, floatify
+from currency import floatify, get_codes, get_default_currency
 
 
 def qss_sheet(name) -> str:
@@ -37,7 +39,8 @@ class MainWindowWrapper(QtWidgets.QMainWindow):
 class MainWindow(MainWindowWrapper):
     ui_types = dict[str, dict[str, Union[
         QtWidgets.QComboBox, QtWidgets.QLabel,
-        QtWidgets.QPushButton
+        QtWidgets.QPushButton, QtWidgets.QLineEdit,
+        QtWidgets.QDateTimeEdit
     ]]]
 
     """Main Window for application."""
@@ -48,7 +51,7 @@ class MainWindow(MainWindowWrapper):
 
         self.ui: MainWindow.ui_types = {}
         self.shortcuts: dict[str, QtGui.QShortcut] = {}
-        self.icon_path = "Assets/exchange.png"
+        self.icon = "Assets/exchange.png"
 
         self.curr_codes = list(get_codes())
 
@@ -72,7 +75,7 @@ class MainWindow(MainWindowWrapper):
 
         self.ui["logo"] = QtWidgets.QLabel(self)
         self.ui["logo"].setGeometry(self.width() - 154, 16, 128, 128)
-        self.ui["logo"].setPixmap(QtGui.QPixmap(self.icon_path).scaled(128, 128))
+        self.ui["logo"].setPixmap(QtGui.QPixmap(self.icon).scaled(128, 128))
 
         self.ui["fields"] = {}
 
@@ -91,21 +94,16 @@ class MainWindow(MainWindowWrapper):
                 self.ui["fields"]["code2"]]):  # * Speedy thanks to caching :D
             field.addItems(sorted(self.curr_codes))
             field.setCurrentIndex(field.findText(_default_currs[i]))
-            field.currentIndexChanged.connect(
-                partial(self.index_changed, f"code{i + 1}")
-            )
 
         self.ui["fields"]["input"] = QtWidgets.QLineEdit(self)
         self.ui["fields"]["input"].setGeometry(20, 115, 200, 75)
         self.ui["fields"]["input"].setPlaceholderText("Amount: ")
         self.ui["fields"]["input"].setFont(QtGui.QFont("helvetica", 20))
-        self.ui["fields"]["input"].setText(get_symbol(_default_currs[0]))
 
         self.ui["fields"]["output"] = QtWidgets.QLineEdit(self)
         self.ui["fields"]["output"].setGeometry(240, 115, 200, 75)
-        self.ui["fields"]["output"].setPlaceholderText("Amount: ")
+        self.ui["fields"]["output"].setPlaceholderText("Result: ")
         self.ui["fields"]["output"].setFont(QtGui.QFont("helvetica", 20))
-        self.ui["fields"]["output"].setText(get_symbol(_default_currs[1]))
         self.ui["fields"]["output"].setReadOnly(True)
 
         self.ui["fields"]["date"] = QtWidgets.QDateTimeEdit
@@ -135,14 +133,14 @@ class MainWindow(MainWindowWrapper):
         code1_index: int = self.ui["fields"]["code1"].currentIndex()
         code2_index: int = self.ui["fields"]["code2"].currentIndex()
 
-        code1 = self.curr_codes.index(code1_index)
-        code2 = self.curr_codes.index(code2_index)
+        code1 = self.curr_codes[code1_index]
+        code2 = self.curr_codes[code2_index]
 
         val = floatify(self.ui["fields"]["input"].text())
 
         print((code1, code2), val)
 
-        rate = _convert(code1, code2, val)
+        rate = _convert(code1, code2, val, datetime.now())
 
         print(f"{code1}: {val} | {code2}: {rate}")
 

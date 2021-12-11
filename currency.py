@@ -1,24 +1,39 @@
 # Stdlib imports
-from datetime import datetime
-from typing import Optional
+import json
 import os
 import re
+import subprocess
+from datetime import datetime, timedelta
+from enum import Enum, auto
+from typing import Optional
 
-# Install module imports
-from forex_python.converter import CurrencyCodes, CurrencyRates
-from datapackage import Package as Pkg
+# Installed module imports
 import httpx
+from datapackage import Package as Pkg
+from forex_python.converter import CurrencyCodes
+
+
+class API(Enum):
+    LATEST = auto()
+    HISTORICAL = auto()
 
 
 CODES_PATH = "Assets/Scripts/csv/codes.csv"
 DEFAULT_CURRENCY_PATH = "ASsets/Scripts/csv/default_currency.csv"
-API_KEY = os.getenv("IPREGISTRY_API_KEY")
-API_URL = f"https://api.ipregistry.co/?key={API_KEY}&fields=location.country"
+
+IPKEY = os.getenv("IPREGISTRY_API_KEY")  # IP_API_KEY but line length limit :(
+IP_API_URL = f"https://api.ipregistry.co/?key={IPKEY}&fields=location.country"
+
+RATES_API_KEY = os.getenv("EXCHANGE_RATE_API_KEY")
+RATES_API_ENDPOINTS = {
+    API.LATEST: "https://freecurrencyapi.net/api/v2/latest?apikey={}",
+    API.HISTORICAL: "https://freecurrencyapi.net/api/v2/historical?apikey={}",
+}
 
 codes = CurrencyCodes()
-rates = CurrencyRates()
-
 float_regex = re.compile(r"[^\d.]+")
+devnull = open(os.devnull, "wb")
+
 
 def get_codes_cache() -> Optional[list[str]]:
     if os.path.exists(CODES_PATH):
@@ -30,7 +45,7 @@ def cache_currency_codes(currency_codes: set[str]):
 
 
 def get_country() -> str:
-    return httpx.get(API_URL).json()["location"]["country"]["name"]
+    return httpx.get(IP_API_URL).json()["location"]["country"]["name"]
 
 
 def get_codes() -> set[str]:
@@ -72,12 +87,78 @@ def get_symbol(code: str) -> str:
 
 
 def floatify(val: str) -> float:
+    if val == "":
+        return 0.0
     return float(float_regex.sub("", val))
 
 
-def get_rate(code1: str, code2: str, date: datetime = None) -> float:
-    return rates.get_rate(code1, code2, date)
+def _construct_url(mode: API, base_currency: str,
+                   date_from: datetime = None,
+                   date_to: datetime = None):
+    url = [
+        RATES_API_ENDPOINTS[mode].format(RATES_API_KEY),
+        f"base_currency={base_currency}",
+    ]
+
+    if date_from is not None:
+        url.append(f"date_from={datetime.strftime(date_from, '%Y-%m-%d')}")
+    if date_to is not None:
+        url.append(f"date_to={datetime.strftime(date_to, '%Y-%m-%d')}")
+
+    print("&".join(url))
+
+    return "&".join(url)
 
 
-def convert(code1: str, code2: str, val: float, date: datetime) -> float:
-    return rates.convert(code1, code2, val, date)
+# TODO: Merge functions to (repeated code)
+
+
+def get_rate(code1: str, code2: str,
+             date: Optional[datetime] = None) -> float:
+    mode = (API.HISTORICAL if date is not None
+            else API.LATEST)
+
+    stdout, stderr = subprocess.Popen(["curl", _construct_url(
+                                      mode, code1, date)],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL).communicate()
+
+    if stderr:
+        print(stderr.decode("utf-8"))
+        raise(subprocess.SubprocessError())
+
+    rates: dict[str, float] = next(iter(json.loads(stdout)["data"].values()))
+
+    print(json.dumps(rates, indent=4), file=open("response.json", "w"))
+
+    return rates[code2]
+
+
+def get_rates(code1: str,
+              date_from: Optional[datetime] = None,
+              date_to: Optional[datetime] = None) -> list[dict[str, float]]:
+    mode = (API.HISTORICAL if date_from is not None else API.LATEST)
+
+    stdout, stderr = subprocess.Popen(["curl", _construct_url(
+                                      mode, code1, date_from, date_to)],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL).communicate()
+
+    if stderr:
+        print(stderr.decode("utf-8"))
+        raise(subprocess.SubprocessError())
+
+    rates: list[dict[str, float]] = json.loads(stdout)["data"]
+
+    print(json.dumps(rates, indent=4), file=open("response.json", "w"))
+
+    return rates
+
+
+def convert(code1: str, code2: str, val: float, dt: datetime = None) -> float:
+    rate = get_rate(code1, code2, dt)
+    return round(val * rate, 3)
+
+
+if __name__ == "__main__":
+    get_rates("GBP", datetime.today() - timedelta(days=30), datetime.today())
