@@ -3,11 +3,12 @@ from __future__ import annotations
 # Stdlib imports
 import sys
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime as dt
+from json.decoder import JSONDecodeError
 from typing import Optional, Union
 
 # Installed module imports
-from PyQt6 import QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 # Local module imports
 from currency import convert as _convert
@@ -82,11 +83,13 @@ class MainWindow(MainWindowWrapper):
         self.ui["fields"]["code1"] = QtWidgets.QComboBox(self)
         self.ui["fields"]["code1"].setGeometry(20, 20, 200, 75)
         self.ui["fields"]["code1"].setInsertPolicy(_insert_policy)
+        self.ui["fields"]["code1"].setStyleSheet(qss_sheet("combo_box"))
         self.ui["fields"]["code1"].setFont(QtGui.QFont("helvetica", 20))
 
         self.ui["fields"]["code2"] = QtWidgets.QComboBox(self)
         self.ui["fields"]["code2"].setGeometry(240, 20, 200, 75)
         self.ui["fields"]["code2"].setInsertPolicy(_insert_policy)
+        self.ui["fields"]["code2"].setStyleSheet(qss_sheet("combo_box"))
         self.ui["fields"]["code2"].setFont(QtGui.QFont("helvetica", 20, 1))
 
         for i, field in enumerate([
@@ -106,14 +109,34 @@ class MainWindow(MainWindowWrapper):
         self.ui["fields"]["output"].setFont(QtGui.QFont("helvetica", 20))
         self.ui["fields"]["output"].setReadOnly(True)
 
-        self.ui["fields"]["date"] = QtWidgets.QDateTimeEdit
+        _infont = self.ui["fields"]["output"].font()
+        _infont.setFamily("helvetica")
+        _infont.setPointSize(10)
+
+        _outfont = self.ui["fields"]["input"].font()
+        _outfont.setFamily("helvetica")
+        _outfont.setPointSize(10)
+
+        self.ui["fields"]["code1"].setFont(_infont)
+        self.ui["fields"]["code2"].setFont(_outfont)
 
         self.ui["buttons"] = {}
         self.ui["buttons"]["convert"] = QtWidgets.QPushButton("CONVERT", self)
-        self.ui["buttons"]["convert"].setGeometry(20, 210, 420, 50)
-        self.ui["buttons"]["convert"].setFont(QtGui.QFont("helvetica", 20))
-        self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("convert_button"))
+        self.ui["buttons"]["convert"].setGeometry(20, 280, 420, 50)
+        self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("button"))
         self.ui["buttons"]["convert"].clicked.connect(self.convert)
+
+        QDt = QtCore.QDate
+        _today = dt.today()
+        _today = _today.year, _today.month, _today.day
+
+        self.ui["fields"]["date"] = QtWidgets.QDateEdit(self)
+        self.ui["fields"]["date"].setGeometry(20, 210, 200, 50)
+        self.ui["fields"]["date"].setMinimumDate(QDt(2000, 1, 1))
+        self.ui["fields"]["date"].setMaximumDate(QDt(*_today))
+        self.ui["fields"]["date"].setDate(QDt(*_today))
+        self.ui["fields"]["date"].setFont(QtGui.QFont("helvetica", 20))
+        # self.ui["fields"]["date"].setStyleSheet()
 
         # TODO: Add offline mode with cached variables
         # TODO: Maybe only conversions to and from 1 currency to save space
@@ -130,19 +153,21 @@ class MainWindow(MainWindowWrapper):
         self.shortcuts["get_rate"].activated.connect(self.convert)
 
     def convert(self):
-        code1_index: int = self.ui["fields"]["code1"].currentIndex()
-        code2_index: int = self.ui["fields"]["code2"].currentIndex()
-
-        code1 = self.curr_codes[code1_index]
-        code2 = self.curr_codes[code2_index]
+        code1 = self.ui["fields"]["code1"].currentText()
+        code2 = self.ui["fields"]["code2"].currentText()
 
         val = floatify(self.ui["fields"]["input"].text())
 
         print((code1, code2), val)
 
-        rate = _convert(code1, code2, val, datetime.now())
+        date = self.ui["fields"]["date"].date().toPyDate()
 
-        print(f"{code1}: {val} | {code2}: {rate}")
+        rate = 1.17
+
+        with suppress(JSONDecodeError):
+            rate = _convert(code1, code2, val, date)
+
+        self.ui["fields"]["output"].setText(str(rate))
 
 
 def main():

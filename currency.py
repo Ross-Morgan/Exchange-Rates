@@ -3,14 +3,12 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime, timedelta
+from datetime import date
 from enum import Enum, auto
 from typing import Optional
 
 # Installed module imports
 import httpx
-from datapackage import Package as Pkg
-from forex_python.converter import CurrencyCodes
 
 
 class API(Enum):
@@ -18,8 +16,8 @@ class API(Enum):
     HISTORICAL = auto()
 
 
-CODES_PATH = "Assets/Scripts/csv/codes.csv"
-DEFAULT_CURRENCY_PATH = "ASsets/Scripts/csv/default_currency.csv"
+CODES_PATH = "Assets/csv/codes.csv"
+DEFAULT_CURRENCY_PATH = "Assets/csv/default_currency.csv"
 
 IPKEY = os.getenv("IPREGISTRY_API_KEY")  # IP_API_KEY but line length limit :(
 IP_API_URL = f"https://api.ipregistry.co/?key={IPKEY}&fields=location.country"
@@ -30,7 +28,6 @@ RATES_API_ENDPOINTS = {
     API.HISTORICAL: "https://freecurrencyapi.net/api/v2/historical?apikey={}",
 }
 
-codes = CurrencyCodes()
 float_regex = re.compile(r"[^\d.]+")
 devnull = open(os.devnull, "wb")
 
@@ -54,19 +51,21 @@ def get_codes() -> set[str]:
     if cache:
         return set(cache)
 
-    package = Pkg("https://datahub.io/core/currency-codes/datapackage.json")
-    currency_codes: list[str] = set()
+    currency_codes: set[str] = set()
 
-    for resource in package.resources:
-        if resource.descriptor["datahub"]["type"] != "derived/csv":
-            continue
+    stdout, stderr = subprocess.Popen(["curl", _construct_url(
+                                      API.LATEST, "GBP")],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL
+                                      ).communicate()
 
-        currency_codes = set(map(lambda x: x[2], resource.read()))
+    if stderr:
+        print(stderr.decode("utf-8"))
+        raise(subprocess.SubprocessError())
 
-        while None in currency_codes:
-            currency_codes.remove(None)
+    data: dict[str, float] = next(iter(json.loads(stdout)["data"].values()))
 
-        break
+    currency_codes: set[str] = set(data.keys())
 
     cache_currency_codes(currency_codes)
 
@@ -82,10 +81,6 @@ def get_default_currency() -> tuple[str, str]:
         return open(DEFAULT_CURRENCY_PATH).read().strip().split(",")[0:2]
 
 
-def get_symbol(code: str) -> str:
-    return codes.get_symbol(code)
-
-
 def floatify(val: str) -> float:
     if val == "":
         return 0.0
@@ -93,17 +88,17 @@ def floatify(val: str) -> float:
 
 
 def _construct_url(mode: API, base_currency: str,
-                   date_from: datetime = None,
-                   date_to: datetime = None):
+                   date_from: date = None,
+                   date_to: date = None):
     url = [
         RATES_API_ENDPOINTS[mode].format(RATES_API_KEY),
         f"base_currency={base_currency}",
     ]
 
     if date_from is not None:
-        url.append(f"date_from={datetime.strftime(date_from, '%Y-%m-%d')}")
+        url.append(f"date_from={date_from.strftime('%Y-%m-%d')}")
     if date_to is not None:
-        url.append(f"date_to={datetime.strftime(date_to, '%Y-%m-%d')}")
+        url.append(f"date_to={date_to.strftime('%Y-%m-%d')}")
 
     print("&".join(url))
 
@@ -114,7 +109,7 @@ def _construct_url(mode: API, base_currency: str,
 
 
 def get_rate(code1: str, code2: str,
-             date: Optional[datetime] = None) -> float:
+             date: date) -> float:
     mode = (API.HISTORICAL if date is not None
             else API.LATEST)
 
@@ -127,16 +122,16 @@ def get_rate(code1: str, code2: str,
         print(stderr.decode("utf-8"))
         raise(subprocess.SubprocessError())
 
-    rates: dict[str, float] = next(iter(json.loads(stdout)["data"].values()))
+    rates = json.loads(stdout)["data"]
 
     print(json.dumps(rates, indent=4), file=open("response.json", "w"))
 
-    return rates[code2]
+    return rates[date.strftime("%Y-%m-%d")][code2]
 
 
 def get_rates(code1: str,
-              date_from: Optional[datetime] = None,
-              date_to: Optional[datetime] = None) -> list[dict[str, float]]:
+              date_from: Optional[date] = None,
+              date_to: Optional[date] = None) -> list[dict[str, float]]:
     mode = (API.HISTORICAL if date_from is not None else API.LATEST)
 
     stdout, stderr = subprocess.Popen(["curl", _construct_url(
@@ -152,13 +147,15 @@ def get_rates(code1: str,
 
     print(json.dumps(rates, indent=4), file=open("response.json", "w"))
 
-    return rates
+    return rates[code1]
 
 
-def convert(code1: str, code2: str, val: float, dt: datetime = None) -> float:
+def convert(code1: str, code2: str, val: float,
+            dt: Optional[date] = None) -> float:
     rate = get_rate(code1, code2, dt)
     return round(val * rate, 3)
 
 
 if __name__ == "__main__":
-    get_rates("GBP", datetime.today() - timedelta(days=30), datetime.today())
+    # get_rates("GBP", date.today() - timedelta(days=30), date.today())
+    print(get_codes())

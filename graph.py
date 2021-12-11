@@ -8,8 +8,8 @@ import pandas as pd
 from currency import get_rate
 
 
-def generate_graph(code1: str, code2: str,
-                   filename: str = "graph.png"):
+def generate_graph(data: dict[str, dict[str, float]],
+                   currency_to: str):
     data = get_rate(code1)
 
 
