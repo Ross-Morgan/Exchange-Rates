@@ -1,18 +1,15 @@
 # Stdlib imports
-from contextlib import suppress
-from typing import Optional, Union
 import sys
+from contextlib import suppress
+from functools import partial
+from typing import Optional, Union
 
 # Installed module imports
 from PyQt6 import QtGui, QtWidgets
 
 # Local module imports
-from currency import (
-    get_codes, get_default_currency,
-    get_symbol,
-    convert as _convert
-)
-
+from currency import convert as _convert
+from currency import get_codes, get_default_currency, get_symbol, remove_symbol
 
 ICON_PATH = "Assets/exchange.png"
 
@@ -75,7 +72,7 @@ class MainWindow(MainWindowWrapper):
         self.ui["background"].setStyleSheet(qss_sheet("background"))
 
         self.ui["logo"] = QtWidgets.QLabel(self)
-        self.ui["logo"].setGeometry(self.width() - 144, 16, 128, 128)
+        self.ui["logo"].setGeometry(self.width() - 154, 16, 128, 128)
         self.ui["logo"].setPixmap(QtGui.QPixmap(ICON_PATH).scaled(128, 128))
 
         self.ui["fields"] = {}
@@ -95,23 +92,31 @@ class MainWindow(MainWindowWrapper):
                 self.ui["fields"]["code2"]]):  # * Speedy thanks to caching :D
             field.addItems(sorted(self.curr_codes))
             field.setCurrentIndex(field.findText(_default_currs[i]))
+            field.currentIndexChanged.connect(
+                partial(self.index_changed, f"code{i + 1}")
+            )
 
-        self.ui["fields"]["input1"] = QtWidgets.QLineEdit(self)
-        self.ui["fields"]["input1"].setGeometry(20, 115, 200, 75)
-        self.ui["fields"]["input1"].setPlaceholderText("Amount: ")
-        self.ui["fields"]["input1"].setFont(QtGui.QFont("helvetica", 20))
+        self.ui["fields"]["input"] = QtWidgets.QLineEdit(self)
+        self.ui["fields"]["input"].setGeometry(20, 115, 200, 75)
+        self.ui["fields"]["input"].setPlaceholderText("Amount: ")
+        self.ui["fields"]["input"].setFont(QtGui.QFont("helvetica", 20))
+        self.ui["fields"]["input"].setText(get_symbol(_default_currs[0]))
 
-        self.ui["fields"]["input2"] = QtWidgets.QLineEdit(self)
-        self.ui["fields"]["input2"].setGeometry(240, 115, 200, 75)
-        self.ui["fields"]["input2"].setPlaceholderText("Amount: ")
-        self.ui["fields"]["input2"].setFont(QtGui.QFont("helvetica", 20))
+        self.ui["fields"]["output"] = QtWidgets.QLineEdit(self)
+        self.ui["fields"]["output"].setGeometry(240, 115, 200, 75)
+        self.ui["fields"]["output"].setPlaceholderText("Amount: ")
+        self.ui["fields"]["output"].setFont(QtGui.QFont("helvetica", 20))
+        self.ui["fields"]["output"].setText(get_symbol(_default_currs[1]))
+        self.ui["fields"]["output"].setReadOnly(True)
+
+        self.ui["fields"]["date"] = QtWidgets.QDateTimeEdit
 
         self.ui["buttons"] = {}
         self.ui["buttons"]["convert"] = QtWidgets.QPushButton("CONVERT", self)
         self.ui["buttons"]["convert"].setGeometry(20, 210, 420, 50)
         self.ui["buttons"]["convert"].setFont(QtGui.QFont("helvetica", 20))
         self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("convert"))
-        self.ui["buttons"]["convert"]
+        self.ui["buttons"]["convert"].clicked.connect(self.convert)
 
         # TODO: Add offline mode with cached variables
         # TODO: Maybe only conversions to and from 1 currency to save space
@@ -128,14 +133,15 @@ class MainWindow(MainWindowWrapper):
         self.shortcuts["get_rate"].activated.connect(self.convert)
 
     def convert(self):
-        code1 = self.ui["fields"]["input"].currentData()
-        code2 = self.ui["fields"]["output"].currentData()
+        code1: str = self.ui["fields"]["code1"].currentData()
+        code2: str = self.ui["fields"]["code2"].currentData()
+        val = remove_symbol(self.ui["fields"]["input"].text())
 
-        print((code1, code2))
+        print((code1, code2), val)
 
-        rate = _convert(code1, code2, 10)
+        rate = _convert(code1, code2, val, date)
 
-        print(10, rate)
+        print(f"{code1}: {val} | {code2}: {rate}")
 
     def text_changed(self, field: str):
         text = self.ui["fields"][field].text()
@@ -145,6 +151,11 @@ class MainWindow(MainWindowWrapper):
         text = "".join([get_symbol(selected_code), text[1:4]])
 
         self.ui["fields"][field].setText(text)
+
+    def index_changed(self, field: str):
+        self.ui["fields"][field].setText(
+
+        )
 
 
 def main():
