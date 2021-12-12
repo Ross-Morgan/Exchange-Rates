@@ -99,7 +99,7 @@ def _construct_url(mode: API, base_currency: str,
     if date_to is not None:
         url.append(f"date_to={date_to.strftime('%Y-%m-%d')}")
 
-    print("&".join(url), open("urls.log", "a"))
+    print("&".join(url), file=open("urls.log", "a"))
 
     return "&".join(url)
 

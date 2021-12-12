@@ -34,12 +34,15 @@ def generate_graph(currency_from: str,
     plt.plot(x, y)
 
     plt.xticks(rotation=45)
-
     plt.xlabel("Date")
     plt.ylabel("Exchange Rate")
     plt.tight_layout()
-    plt.savefig("graph.svg")
-    plt.show()
+    plt.savefig(f"{currency_from}-{currency_to}.svg")
+
+    plt.gca().axes.get_xaxis().set_visible(False)
+    plt.ylabel("")
+
+    plt.savefig("graph.svg", bbox_inches="tight")
 
 
 if __name__ == "__main__":

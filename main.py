@@ -17,6 +17,30 @@ def qss_sheet(name) -> str:
     return open(f"Assets/Scripts/{name}.qss").read()
 
 
+class GraphWindow(QtWidgets.QWidget):
+    def __init__(self, size: tuple[int, int], title: str,
+                 icon: QtGui.QIcon,
+                 parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super(GraphWindow, self).__init__(parent)
+
+        self.setFixedSize(*size)
+        self.setWindowTitle(title)
+        self.setWindowIcon(icon)
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.graph = QtWidgets.QLabel(self)
+        self.graph.setGeometry(0, 0, self.width(), self.height())
+
+    def show(self):
+        self.graph.setPixmap(QtGui.QPixmap("graph.svg").scaled(
+            self.width(), self.height())
+        )
+
+        super().show()
+
+
 class MainWindowWrapper(QtWidgets.QMainWindow):
     """It works? Adds exit prompt functionality"""
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
@@ -61,12 +85,19 @@ class MainWindow(MainWindowWrapper):
         self.setup_ui()
         self.setup_shortcuts()
 
+    def subwindow(self, size: tuple[int, int], title: str,
+                  icon: QtGui.QIcon) -> GraphWindow:
+        return GraphWindow(size, title, icon, self)
+
     def setup_ui(self) -> None:
         _insert_policy = QtWidgets.QComboBox.InsertPolicy.InsertAlphabetically
         _default_currs = ("GBP", "USD")
 
         with suppress(ValueError):
             _default_currs = get_default_currency()
+
+        self.graph_window = self.subwindow((800, 400), "Currency Graph",
+                                           QtGui.QIcon(self.icon))
 
         self.ui["background"] = QtWidgets.QLabel(self)
         self.ui["background"].setGeometry(0, 0, self.width(), self.height())
@@ -99,34 +130,23 @@ class MainWindow(MainWindowWrapper):
         self.ui["fields"]["input"] = QtWidgets.QLineEdit(self)
         self.ui["fields"]["input"].setGeometry(20, 115, 200, 75)
         self.ui["fields"]["input"].setPlaceholderText("Amount: ")
-        self.ui["fields"]["input"].setFont(QtGui.QFont("helvetica", 20))
+        self.ui["fields"]["input"].setFont(QtGui.QFont("helvetica", 10))
 
         self.ui["fields"]["output"] = QtWidgets.QLineEdit(self)
         self.ui["fields"]["output"].setGeometry(240, 115, 200, 75)
         self.ui["fields"]["output"].setPlaceholderText("Result: ")
-        self.ui["fields"]["output"].setFont(QtGui.QFont("helvetica", 20))
+        self.ui["fields"]["output"].setFont(QtGui.QFont("helvetica", 10))
         self.ui["fields"]["output"].setReadOnly(True)
 
-        _infont = self.ui["fields"]["output"].font()
-        _infont.setFamily("helvetica")
-        _infont.setPointSize(10)
-
-        _outfont = self.ui["fields"]["input"].font()
-        _outfont.setFamily("helvetica")
-        _outfont.setPointSize(10)
-
-        self.ui["fields"]["code1"].setFont(_infont)
-        self.ui["fields"]["code2"].setFont(_outfont)
-
-        QDt = QtCore.QDate
+        QDate = QtCore.QDate
         _today = dt.today()
         _today = _today.year, _today.month, _today.day
 
         self.ui["fields"]["date"] = QtWidgets.QDateEdit(self)
         self.ui["fields"]["date"].setGeometry(20, 210, 200, 50)
-        self.ui["fields"]["date"].setMinimumDate(QDt(2000, 1, 1))
-        self.ui["fields"]["date"].setMaximumDate(QDt(*_today))
-        self.ui["fields"]["date"].setDate(QDt(*_today))
+        self.ui["fields"]["date"].setMinimumDate(QDate(2000, 1, 1))
+        self.ui["fields"]["date"].setMaximumDate(QDate(*_today))
+        self.ui["fields"]["date"].setDate(QDate(*_today))
         self.ui["fields"]["date"].setFont(QtGui.QFont("helvetica", 20))
 
         self.ui["buttons"] = {}
@@ -140,12 +160,15 @@ class MainWindow(MainWindowWrapper):
         self.ui["buttons"]["generate"].setStyleSheet(qss_sheet("button"))
         self.ui["buttons"]["generate"].clicked.connect(self.generate_graph)
 
+        self.ui["pixmap"] = QtGui.QPixmap("graph.svg")
         self.ui["graph"] = QtWidgets.QLabel(self)
-        self.ui["graph"].setGeometry(240, 210, 380, 250)
-        self.ui["graph"].setStyleSheet("background-color: #646464")
-        self.ui["graph_scene"] = QtWidgets.QGraphicsScene(240, 210, 210, 120, self)
-        self.ui["graph_view"] = QtWidgets.QGraphicsView(self.ui["graph_scene"])
-        self.ui["graph_view"]
+        self.ui["graph"].setGeometry(240, 210, 380, 190)
+        self.ui["graph"].setPixmap(self.ui["pixmap"].scaled(380, 190))
+
+        self.ui["buttons"]["show_graph"] = QtWidgets.QPushButton(self)
+        self.ui["buttons"]["show_graph"].setGeometry(240, 210, 380, 190)
+        self.ui["buttons"]["show_graph"].setStyleSheet(qss_sheet("show_graph"))
+        self.ui["buttons"]["show_graph"].clicked.connect(self.show_graph)
 
         # TODO: Add offline mode with cached variables
         # TODO: Maybe only conversions to and from 1 currency to save space
@@ -167,8 +190,6 @@ class MainWindow(MainWindowWrapper):
 
         val = floatify(self.ui["fields"]["input"].text())
 
-        print((code1, code2), val)
-
         date = self.ui["fields"]["date"].date().toPyDate()
 
         rate = 1.17
@@ -182,7 +203,15 @@ class MainWindow(MainWindowWrapper):
         code1 = self.ui["fields"]["code1"].currentText()
         code2 = self.ui["fields"]["code2"].currentText()
 
+        print(code1, code2)
+
         generate_graph(code1, code2)
+
+        self.ui["pixmap"] = QtGui.QPixmap("graph.svg")
+        self.ui["graph"].setPixmap(self.ui["pixmap"].scaled(380, 190))
+
+    def show_graph(self):
+        self.graph_window.show()
 
 
 def main():
