@@ -3,7 +3,7 @@ import json
 import os
 import re
 import subprocess
-from datetime import date
+from datetime import date, timedelta
 from enum import Enum, auto
 from typing import Optional
 
@@ -32,13 +32,13 @@ float_regex = re.compile(r"[^\d.]+")
 devnull = open(os.devnull, "wb")
 
 
-def get_codes_cache() -> Optional[list[str]]:
+def get_codes_cache() -> Optional[set[str]]:
     if os.path.exists(CODES_PATH):
-        return open(CODES_PATH).read().strip().split(",")
+        return set(open(CODES_PATH).read().strip().split(","))
 
 
 def cache_currency_codes(currency_codes: set[str]):
-    open(CODES_PATH, "w+").write(",".join(currency_codes))
+    set(open(CODES_PATH, "w+").write(",".join(currency_codes)))
 
 
 def get_country() -> str:
@@ -49,23 +49,22 @@ def get_codes() -> set[str]:
     cache = get_codes_cache()
 
     if cache:
-        return set(cache)
+        return cache
 
     currency_codes: set[str] = set()
 
     stdout, stderr = subprocess.Popen(["curl", _construct_url(
                                       API.LATEST, "GBP")],
                                       stdout=subprocess.PIPE,
-                                      stderr=subprocess.DEVNULL
-                                      ).communicate()
+                                      stderr=subprocess.DEVNULL).communicate()
 
     if stderr:
         print(stderr.decode("utf-8"))
         raise(subprocess.SubprocessError())
 
-    data: dict[str, float] = next(iter(json.loads(stdout)["data"].values()))
+    stdout: dict[str, float] = json.loads(stdout.decode("utf-8"))["data"]
 
-    currency_codes: set[str] = set(data.keys())
+    currency_codes: set[str] = set(stdout.keys())
 
     cache_currency_codes(currency_codes)
 
@@ -82,7 +81,7 @@ def get_default_currency() -> tuple[str, str]:
 
 
 def floatify(val: str) -> float:
-    if val == "":
+    if not val:
         return 0.0
     return float(float_regex.sub("", val))
 
@@ -100,7 +99,7 @@ def _construct_url(mode: API, base_currency: str,
     if date_to is not None:
         url.append(f"date_to={date_to.strftime('%Y-%m-%d')}")
 
-    print("&".join(url))
+    print("&".join(url), open("urls.log", "a"))
 
     return "&".join(url)
 
@@ -157,5 +156,4 @@ def convert(code1: str, code2: str, val: float,
 
 
 if __name__ == "__main__":
-    # get_rates("GBP", date.today() - timedelta(days=30), date.today())
-    print(get_codes())
+    get_rates("GBP", date.today() - timedelta(days=30), date.today())

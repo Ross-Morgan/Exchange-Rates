@@ -26,9 +26,6 @@ def generate_graph(currency_from: str,
 
     hist_data.sort(key=lambda x: x["date"])
 
-    from pprint import pprint
-    pprint(hist_data, indent=4)
-
     df = pd.DataFrame(hist_data)
 
     x = df["date"]
@@ -36,12 +33,13 @@ def generate_graph(currency_from: str,
 
     plt.plot(x, y)
 
-    plt.xticks(rotation=90)
+    plt.xticks(rotation=45)
 
     plt.xlabel("Date")
     plt.ylabel("Exchange Rate")
-
+    plt.tight_layout()
     plt.savefig("graph.svg")
+    plt.show()
 
 
 if __name__ == "__main__":

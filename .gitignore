@@ -7,3 +7,7 @@
 *.env
 *.json
 *.svg
+*.png
+*.jpg
+*.jpeg
+*.log

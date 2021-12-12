@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-# Stdlib imports
 import sys
 from contextlib import suppress
 from datetime import datetime as dt
 from json.decoder import JSONDecodeError
 from typing import Optional, Union
 
-# Installed module imports
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-# Local module imports
 from currency import convert as _convert
 from currency import floatify, get_codes, get_default_currency
+from graph import generate_graph
 
 
 def qss_sheet(name) -> str:
@@ -75,7 +73,7 @@ class MainWindow(MainWindowWrapper):
         self.ui["background"].setStyleSheet(qss_sheet("background"))
 
         self.ui["logo"] = QtWidgets.QLabel(self)
-        self.ui["logo"].setGeometry(self.width() - 154, 16, 128, 128)
+        self.ui["logo"].setGeometry(self.width() - 164, 41, 128, 128)
         self.ui["logo"].setPixmap(QtGui.QPixmap(self.icon).scaled(128, 128))
 
         self.ui["fields"] = {}
@@ -120,12 +118,6 @@ class MainWindow(MainWindowWrapper):
         self.ui["fields"]["code1"].setFont(_infont)
         self.ui["fields"]["code2"].setFont(_outfont)
 
-        self.ui["buttons"] = {}
-        self.ui["buttons"]["convert"] = QtWidgets.QPushButton("CONVERT", self)
-        self.ui["buttons"]["convert"].setGeometry(20, 280, 420, 50)
-        self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("button"))
-        self.ui["buttons"]["convert"].clicked.connect(self.convert)
-
         QDt = QtCore.QDate
         _today = dt.today()
         _today = _today.year, _today.month, _today.day
@@ -136,7 +128,24 @@ class MainWindow(MainWindowWrapper):
         self.ui["fields"]["date"].setMaximumDate(QDt(*_today))
         self.ui["fields"]["date"].setDate(QDt(*_today))
         self.ui["fields"]["date"].setFont(QtGui.QFont("helvetica", 20))
-        # self.ui["fields"]["date"].setStyleSheet()
+
+        self.ui["buttons"] = {}
+        self.ui["buttons"]["convert"] = QtWidgets.QPushButton("CONVERT", self)
+        self.ui["buttons"]["convert"].setGeometry(20, 280, 200, 50)
+        self.ui["buttons"]["convert"].setStyleSheet(qss_sheet("button"))
+        self.ui["buttons"]["convert"].clicked.connect(self.convert)
+
+        self.ui["buttons"]["generate"] = QtWidgets.QPushButton("GRAPH", self)
+        self.ui["buttons"]["generate"].setGeometry(20, 350, 200, 50)
+        self.ui["buttons"]["generate"].setStyleSheet(qss_sheet("button"))
+        self.ui["buttons"]["generate"].clicked.connect(self.generate_graph)
+
+        self.ui["graph"] = QtWidgets.QLabel(self)
+        self.ui["graph"].setGeometry(240, 210, 380, 250)
+        self.ui["graph"].setStyleSheet("background-color: #646464")
+        self.ui["graph_scene"] = QtWidgets.QGraphicsScene(240, 210, 210, 120, self)
+        self.ui["graph_view"] = QtWidgets.QGraphicsView(self.ui["graph_scene"])
+        self.ui["graph_view"]
 
         # TODO: Add offline mode with cached variables
         # TODO: Maybe only conversions to and from 1 currency to save space
@@ -169,6 +178,12 @@ class MainWindow(MainWindowWrapper):
 
         self.ui["fields"]["output"].setText(str(rate))
 
+    def generate_graph(self):
+        code1 = self.ui["fields"]["code1"].currentText()
+        code2 = self.ui["fields"]["code2"].currentText()
+
+        generate_graph(code1, code2)
+
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
@@ -185,18 +200,4 @@ def main():
 
 
 if __name__ == "__main__":
-    DEBUG = True
-
-    if DEBUG:
-        import cProfile
-        import pstats
-
-        with cProfile.Profile() as pr:
-            main()
-
-        stats = pstats.Stats(pr)
-        stats.sort_stats(pstats.SortKey.TIME)
-        stats.dump_stats("profile.prof")
-
-    else:
-        main()
+    main()
