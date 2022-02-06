@@ -3,21 +3,20 @@ from datetime import date, timedelta
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+from assets import Assets
 
 from currency import get_rates
 
 matplotlib.use("Qt5Agg")
 
 
-def generate_graph(currency_from: str,
+def save_history_svg(currency_from: str,
                    currency_to: str):
 
     date_from = date.today() - timedelta(days=29)
     date_to = date.today()
 
     json_data = get_rates(currency_from, date_from, date_to)
-
-    fig, ax = plt.subplots(figsize=(12, 6))
 
     hist_data = []
     for key, value in json_data.items():
@@ -37,13 +36,8 @@ def generate_graph(currency_from: str,
     plt.xlabel("Date")
     plt.ylabel("Exchange Rate")
     plt.tight_layout()
-    plt.savefig(f"{currency_from}-{currency_to}.svg")
 
     plt.gca().axes.get_xaxis().set_visible(False)
     plt.ylabel("")
 
-    plt.savefig("graph.svg", bbox_inches="tight")
-
-
-if __name__ == "__main__":
-    generate_graph("GBP", "USD")
+    plt.savefig(Assets.Temp.graph, bbox_inches="tight")
